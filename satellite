@@ -1,0 +1,263 @@
+clc;
+clear;
+%% ==================== Lambert's Orbit Estimation ===================== %%
+% Variables:
+%
+% a             = Semi-Major Axis (km)
+% A             = Assumption parameter
+% c             = C(z) class of Stumpff Functions
+% c_z           = C(z) class of Stumpff Functions array
+% del_theta     = Change in true anamoly (degree)
+% delta_t       = Elapsed Time between successive vectors (sec)
+% e             = Eccentricity Vector of the orbit
+% e_m           = Magnitude of the eccentricity vector
+% f,g,dg        = Lagrange Coefficients
+% f_z           = Shape Parameter function for newton iteration
+% h             = Specific Angular Momentum vector (km^2/s)
+% h_mag         = Magnitude of specific angular momentum (km^2/s)
+% incl          = Inclination of the orbit (degree)
+% K             = Vector Node along z-axis
+% mu            = Gravitational Parameter (km^3/sec^2)
+% N             = Node Line Vector
+% N_M           = Magnitide of Node vector
+% ohm           = Right Ascension of Ascending node (degrees)
+% omega         = Argument of Perigee (degrees)
+% r_a,r_p       = Apogee and Perigee Radii (km)
+% R1 (I,J,K)    = Components of position vector 1 (km)
+% R1_M          = Magnitude of vector R1 (km)
+% R1_V          = Position Vector 1 (km)
+% R2 (I,J,K)    = Components of position vector 2 (km)
+% R2_M          = Magnitude of vector R2 (km)
+% R2_V          = Position Vector 2 (km)
+% R_cross       = Cross Product of R1 and R2 vectors
+% s             = S(z) class of Stumpff Functions
+% s_z           = S(z) class of Stumpff Functions array
+% theta         = True Anamoly (degrees)
+% V1_M          = Velocity magnitude of velocity vector V1 (km/s)
+% V1_V          = Velocity vector corresponding to R1 (km/s)
+% V2_V          = Velocity vector corresponding to R2 (km/s)
+% VR            = Radial velocity vector (km/s)
+% y_z           = Stumpff function subsitution assumption
+% z             = Trajectory Shape Parameter
+%%
+
+
+% exampe 5.2
+%--------------------------- Initial Input ---------------------------
+% Position Vector (R1)        : [5000, 10000, 2100] (km)
+ %Position Vector (R2)        : [-14600, 2500, 7000] (km)
+% Elapsed time                : 3600 seconds
+
+
+
+
+% Input: Position Vector 1:
+R1_I = input('Enter position 1 (I-component (km)): ');
+R1_J = input('Enter position 1 (J-component (km)): ');
+R1_K = input('Enter position 1 (K-component (km)): ');
+R1_V = [R1_I R1_J R1_K];
+R1_M = norm(R1_V);
+
+% Input: Position Vector 2:
+R2_I = input('Enter position 2 (I-component (km)): ');
+R2_J = input('Enter position 2 (J-component (km)): ');
+R2_K = input('Enter position 2 (K-component (km)): ');
+R2_V = [R2_I R2_J R2_K];
+R2_M = norm(R2_V);
+
+% Input: Time Lapse between consecutive position vectors:
+delta_t     = input('Enter delta t time (sec): ');
+
+ mu= 398600; % for earth, km3/s2 
+
+% Estimating nature of the trajectory and true anamoly:
+R_cross     = cross(R1_V,R2_V);
+del_theta   = acosd(dot(R1_V,R2_V)/(R1_M*R2_M));
+incl        = acosd((R_cross(3))/(R1_M*R2_M*sind(del_theta)));
+
+if cosd(incl) > 0
+    if R_cross(3) >= 0
+        del_theta = del_theta;
+    else R_cross(3) < 0
+        del_theta = 360 - del_theta;
+    end
+else cosd(incl) < 0
+    if R_cross(3) < 0
+        del_theta = del_theta;
+    else R_cross(3) >= 0
+        del_theta = 360 - del_theta;
+    end
+end
+
+A           = sind(del_theta)*sqrt((R1_M*R2_M)/(1-cosd(del_theta)));
+
+%  F(z) and F'(z) to predict the trajectory:
+z       = (-10:0.1:10);
+s_z     = [];
+c_z     = [];
+
+%source code
+for i=1:201
+    % Defininig S(z)of stumpff functions:
+    if z(i) > 0
+        s = (sqrt(z(i)) - sin(sqrt(z(i))))/(sqrt(z(i)))^3;
+    elseif z(i) < 0
+        s = (sinh(sqrt(-z(i))) - sqrt(-z(i)))/(sqrt(-z(i)))^3;
+    else
+        s = 1/6;
+    end
+    s_z     = [s_z,s];
+    
+    %Defining C(z) class of stumpff functions:
+    if z(i) > 0
+        c = (1 - cos(sqrt(z(i))))/z(i);
+    elseif z(i) < 0
+        c = (cosh(sqrt(-z(i))) - 1)/(-z(i));
+    else
+        c = 1/2;
+    end
+    c_z     = [c_z,c];
+end
+%here 
+
+y_z     = R1_M + R2_M + A.*((z.*s_z-1)./(sqrt(c_z)));
+f_z     = (((y_z)./(c_z)).^1.5).*s_z + A.*sqrt(y_z) - sqrt(mu)*delta_t;
+
+
+figure(1)
+hold on
+grid on
+plot(z,f_z,':','Linewidth',2)
+xlabel('z','Fontweight','bold')
+ylabel('F(z)','Fontweight','bold')
+hold off
+
+z       = input('\nEnter the value of z at inflection point: ');
+ratio   = 1; 
+
+% source code
+while abs(ratio) > 1.e-10
+
+    % Defininig S(z) class of stumpff functions:
+    if z > 0
+        s = (sqrt(z) - sin(sqrt(z)))/(sqrt(z))^3;
+    elseif z < 0
+        s = (sinh(sqrt(-z)) - sqrt(-z))/(sqrt(-z))^3;
+    else
+        s = 1/6;
+    end
+    
+    %Defining C(z) class of stumpff functions:
+    if z > 0
+        c = (1 - cos(sqrt(z)))/z;
+    elseif z < 0
+        c = (cosh(sqrt(-z)) - 1)/(-z);
+    else
+        c = 1/2;
+    end
+    %here
+    
+    %related formulas from the book
+    
+y_z     = R1_M + R2_M + A.*((z.*s-1)./(sqrt(c)));
+f_z     = (((y_z)./(c)).^1.5).*s + A.*sqrt(y_z) - sqrt(mu)*delta_t;
+
+if z == 0
+    df_z    = (sqrt(2)/40)*((y_z)^1.5) + (A/8)*(sqrt(y_z) + A*sqrt(1/2*y_z));
+else
+    a1      = (1/(2*z))*(c-(1.5*(s/c))) + 0.75*(s^2/c);
+    a2      = (3*(s/c)*sqrt(y_z)) + A*sqrt(c/y_z);
+    df_z    = (((y_z/c)^1.5)*a1) + ((A/8)*a2);
+end
+
+ratio       = f_z/df_z;
+z           = z - ratio;
+end
+
+%related formulas from the book
+% Calculating lagrange functions:
+y_z     = R1_M + R2_M + A.*((z.*s-1)./(sqrt(c)));
+f       = 1 - (y_z/R1_M);
+g       = A*sqrt(y_z/mu);
+dg      = 1 - (y_z/R2_M);
+
+% Calculating velocity vectors with reference to position vectors:
+V1_V    = (1/g)*(R2_V - f*R1_V);
+V2_V    = (1/g)*(dg*R2_V - R1_V);
+
+% orbital elements :
+V1_M    = norm(V1_V);
+VR      = dot(R1_V,V1_V)/R1_M;
+h       = cross(R1_V,V1_V);
+h_mag   = norm(h);
+incl    = acosd(h(3)/h_mag); 
+K       = [0 0 1];
+N       = cross(K,h);
+N_M     = norm(N);
+
+% RA of ascending node:
+if N(2) >= 0
+    ohm = acosd(N(1)/N_M);
+else N(2) < 0
+    ohm = 360 - acosd(N(1)/N_M);
+end
+
+% Eccentricity:
+e       = (1/mu)*(((V1_M^2)-(mu/R1_M))*R1_V - (R1_M*VR*(V1_V)));
+e_m     = norm(e);
+
+% Argument of Perigee
+if e(3) >= 0
+    omega   = acosd(dot(N,e)/(N_M*e_m));
+else e(3) < 0
+    omega   = 360 - acosd(dot(N,e)/(N_M*e_m));
+end
+
+% True Anamoly
+if VR >= 0
+    theta = acosd(dot(e,R1_V)/(R1_M*e_m));
+else VR < 0
+    theta = 360 - acosd(dot(e,R1_V)/(R1_M*e_m));
+end
+
+% Semi-major axis:
+r_p     = (h_mag^2/mu)*(1/(1 + e_m));
+r_a     = (h_mag^2/mu)*(1/(1 - e_m));
+a       = 0.5*(r_p + r_a);
+
+% Echoing results from the lambert's problem:
+clc
+
+fprintf('--------------------------- Initial Input ---------------------------')
+fprintf('\n Position Vector (R1)        : [%g, %g, %g] (km)', R1_V(1), R1_V(2), R1_V(3))
+fprintf('\n Position Vector (R2)        : [%g, %g, %g] (km)', R2_V(1), R2_V(2), R2_V(3))
+fprintf('\n Elapsed time                : %g seconds',delta_t)
+fprintf('\n\n-------------------- Orbital Elements and Nature --------------------')
+fprintf('\n Velocity Vector (V1)        : [%g, %g, %g] (km/s)', V1_V(1), V1_V(2), V1_V(3))
+fprintf('\n Semi-Major Axis             : %g km', a)
+fprintf('\n Specific Angular Momentum   : %g km^2/s', h_mag)
+fprintf('\n Inclination of Orbit        : %g degrees', incl)
+fprintf('\n RA of Ascending Node        : %g degrees', ohm)
+fprintf('\n Argument of Perigee         : %g degrees', omega)
+fprintf('\n True Anomaly                : %g degrees', theta)
+fprintf('\n Eccentricity of Orbit       : %g', e_m)
+
+if e_m == 0
+    fprintf('\n\n The orbit is circular.')
+elseif e_m == 1
+    fprintf('\n\n The orbit is parabolic.')
+elseif e_m > 1
+    fprintf('\n\n The orbit is hyperbolic.')
+else 
+    fprintf('\n\n The orbit is elliptic.')
+end
+
+if incl > 0
+    if incl < 90
+        fprintf('\n The given orbit is a prograde trajectory.')
+    else
+        fprintf('\n The given orbit is a retrograde trajectory.')
+    end
+else
+end
+fprintf('\n---------------------------------------------------------------------')
