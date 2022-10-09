@@ -1,2 +1,2 @@
 # Langrange-problem
-Langrange problem
+In this Matlab code, I am calculating the delta and inclination terms for the orbit using the Lambert problem approach by entering the elapsed time with two position vectors as R1 and R2. The coefficients of the Lagrange function are calculated using the Stumpff c(z) and s(z) functions. The velocity vectors are also calculated according to the reference position vectors. In addition, the orbit shape and orbital parameters are calculated. I am having the Lagrange function z graphed.
